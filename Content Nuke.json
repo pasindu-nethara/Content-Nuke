@@ -1,0 +1,847 @@
+{
+  "name": "Content Nuke",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour",
+              "minute": 59
+            }
+          ]
+        },
+        "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9x0AN7BWHpCDHSm9NiJFJQ"
+      },
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -32
+      ],
+      "id": "72f6ac1a-dd77-4f95-9be6-c488dc5284b2",
+      "name": "RSS Feed Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://youtube-mp36.p.rapidapi.com/dl",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.id.replace('yt:video:', '') }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-key",
+              "value": "4a0272d34cmsh7596c1e59ed79dbp1f8384jsn5d3d37e1f08b"
+            },
+            {
+              "name": "x-rapidapi-host",
+              "value": "youtube-mp36.p.rapidapi.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -192,
+        -32
+      ],
+      "id": "dbc0d8d5-8115-4fa1-89c6-80246b7e9132",
+      "name": "Get Download Link"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        272,
+        -48
+      ],
+      "id": "0c124692-ec6d-4b56-b167-c0c70af69b8c",
+      "name": "Download Audio"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "inputType": "binary",
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        464,
+        -48
+      ],
+      "id": "d682939a-05bf-4887-92a4-adc1d3f592a9",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ntzJjlEDwPiFjTvj",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "88f42a55-b8c7-4e76-937d-470bd5e4cf67",
+              "leftValue": "={{ $json.duration }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "b4d51f7a-ad58-4d61-9f2e-6811656af200",
+      "name": "Is Video long"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        736,
+        112
+      ],
+      "id": "9369f8b2-f3ae-4954-a242-e02cd93f68e0",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ntzJjlEDwPiFjTvj",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role & Persona:\nAct as an expert social media ghostwriter. Your specialty is taking raw, spoken transcripts and turning them into punchy, high-value LinkedIn posts.\n\nThe Task:\nAnalyze the transcript provided below. Identify the single most insightful or controversial idea. Transform that specific idea into a high-engagement LinkedIn post.\n\nContext:\n- Audience: Software Engineers and Founders.\n- Goal: To showcase thought leadership.\n\nStrict Constraints:\n1. Clean Up the Voice: Remove filler words, but keep the personality.\n2. No \"AI Buzzwords\": Do not use \"delve,\" \"unleash,\" \"game-changer,\" \"harness,\" or \"realm.\"\n3. The Hook: First line must be under 10 words.\n4. Formatting: Short paragraphs. Bullet points. Max 2 emojis.\n\nFormat Structure:\n- Hook: [1-line hard hitter]\n- The \"Meat\": [The core insight]\n- Actionable Advice: [How to apply this]\n- Call to Action: [A question]\n\n[TRANSCRIPT START]\n{{ $json.candidates[0].content.parts[0].text }}\n[TRANSCRIPT END]",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        672,
+        -48
+      ],
+      "id": "2f6acbdd-9cf1-43a7-8a29-79153d60def9",
+      "name": "LinkedIn Post"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        736,
+        448
+      ],
+      "id": "ddd984ea-0500-4c13-aa69-532c9570c1ba",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ntzJjlEDwPiFjTvj",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role & Persona:\nAct as a master Twitter/X thread writer. You specialize in taking long-form content and condensing it into viral, punchy threads that drive engagement.\n\nThe Task:\nAnalyze the transcript below. Extract the core narrative and convert it into a thread of EXACTLY 5 tweets.\n\nStructure of the 5 Tweets:\n1. Tweet 1 (The Hook): A punchy, controversial, or \"how-to\" statement that makes the user click.\n2. Tweet 2 (The Problem/Context): What is the issue or the background?\n3. Tweet 3 (The Solution/Insight): The core \"golden nugget\" from the transcript.\n4. Tweet 4 (The Example/Evidence): A specific detail or proof point.\n5. Tweet 5 (The CTA): A summary and a question to drive replies.\n\nStrict Constraints:\n1. Length: Each tweet must be under 230 characters.\n2. Formatting: Use short sentences. Use bullet points where possible.\n3. Tone: Casual, direct, \"Twitter native\" (no corporate speak).\n4. No Hashtags: Do not clutter the tweets with hashtags (max 1 in the last tweet).\n5. VITAL: Separate every tweet with the exact string \"|||\" so I can split them later. Do not number them \"1/5\", just use the separator.\n\n[TRANSCRIPT START]\n {{ $json.candidates[0].content.parts[0].text }}\n[TRANSCRIPT END]",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        672,
+        272
+      ],
+      "id": "9fc71860-5669-4f29-8d5d-45dbf06ee6db",
+      "name": "Twitter Thread"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the full text (Make sure 'text' matches your Gemini output field name)\n// It might be 'content', 'output', or 'text' depending on your node.\nconst fullText = $input.first().json.text; \n\n// 2. Split the text into an array based on your separator\nconst tweetsArray = fullText.split('|||').map(t => t.trim()).filter(t => t);\n\n// 3. Create a single object to hold them\nconst resultObject = {};\n\n// 4. Loop through and assign them to keys \"tweet 1\", \"tweet 2\", etc.\ntweetsArray.forEach((tweet, index) => {\n  resultObject[`tweet ${index + 1}`] = tweet;\n});\n\n// 5. Return as a single item\nreturn { json: resultObject };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        288
+      ],
+      "id": "08428709-2e1f-4212-8be3-a6cae488ceea",
+      "name": "Split tweets"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        752,
+        800
+      ],
+      "id": "d0b388f0-cf9e-43b7-b834-e263cecb3e5d",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ntzJjlEDwPiFjTvj",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role & Persona:\nAct as an API that converts unstructured transcripts into concise, high-value newsletter content. Your goal is \"respecting the reader's time.\"\n\nThe Task:\nAnalyze the transcript below and return a valid JSON object. Keep the content punchy, scannable, and brief. Do not include markdown formatting (like ```json) outside the JSON.\n\nOutput Schema:\n{\n  \"subject_line\": \"Attention-grabbing subject line (Max 50 chars)\",\n  \"preview_text\": \"A 1-sentence teaser.\",\n  \"intro_greeting\": \"Hi [First Name],\",\n  \"tldr_bullets\": [\n    \"Bullet 1 (Max 15 words)\",\n    \"Bullet 2 (Max 15 words)\",\n    \"Bullet 3 (Max 15 words)\"\n  ],\n  \"main_story_markdown\": \"A concise summary of the core insight. STRICT LIMIT: Max 2 short paragraphs (approx 150 words total). Use valid Markdown.\",\n  \"key_takeaways\": [\n    \"Takeaway 1 🚀 (1 sentence)\",\n    \"Takeaway 2 💡 (1 sentence)\",\n    \"Takeaway 3 🛠️ (1 sentence)\"\n  ],\n  \"quote_of_the_week\": \"The best quote (keep it short).\",\n  \"final_question\": \"A specific question to ask the reader.\"\n}\n\nStrict Constraints:\n1. BREVITY RULE: The `main_story_markdown` must be under 300 words. Cut all fluff.\n2. CRITICAL JSON RULE: The output must be valid JSON.\n3. HANDLING QUOTES: Use SINGLE quotes (e.g., 'superpower') inside text strings to avoid breaking the JSON.\n4. Do not assume the user's name.\n\n[TRANSCRIPT START]\n{{ $json.candidates[0].content.parts[0].text }}\n[TRANSCRIPT END]",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        688,
+        624
+      ],
+      "id": "44701e8d-5033-4fb6-957b-caa7b7ae3316",
+      "name": "Newsletter"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the content\nconst rawContent = $input.first().json.text; // Check that 'content' matches your Gemini output field name\n\n// Helper function to clean common JSON errors from LLMs\nfunction cleanJSON(str) {\n  // 1. Remove markdown code blocks if present\n  let clean = str.replace(/```json|```/g, '').trim();\n  \n  // 2. optional: replace \"smart quotes\" (curly quotes) which sometimes break things\n  clean = clean.replace(/[\\u201C\\u201D]/g, '\"');\n  \n  return clean;\n}\n\nlet parsedData;\ntry {\n  const cleanedText = cleanJSON(rawContent);\n  parsedData = JSON.parse(cleanedText);\n} catch (error) {\n  // If strict parsing fails, we return the error and the raw text so you don't lose the data\n  parsedData = { \n    error: \"JSON Parsing Failed - likely unescaped quotes\",\n    details: error.message,\n    fallback_raw_text: rawContent \n  };\n}\n\nreturn { json: parsedData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        624
+      ],
+      "id": "eba2d70f-b638-4160-adf8-1d09b3a6ad06",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-image",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-image (Nano Banana)"
+        },
+        "prompt": "=Role & Persona:\nYou are a world-class digital artist and marketing strategist. You specialize in creating high-conversion social media thumbnails that are professional, conceptually brilliant, and impossible to ignore on a feed.\n\nThe Task:\n1.  **Analyze** the transcript provided below to understand the core message and the \"hook.\"\n2.  **Generate** a single, high-quality image thumbnail suitable for LinkedIn and X (Twitter).\n\nVisual Design Constraints (Strict):\n* **Aspect Ratio:** Landscape (16:9 horizontal).\n* **Style:** Clean, modern, professional, and high-contrast. Think \"premium editorial illustration\" or \"cinematic photography,\" not \"generic stock photo\" or \"cartoony.\"\n* **Composition:** Simple and uncluttered. The main subject should be clear instantly on a small screen.\n* **Text Integration:** Include a VERY SHORT (max 5 words) punchy headline integrated into the image design. The text must be bold, legible, and summarize the main hook of the transcript.\n\nThe Goal:\nThe image must stop a busy professional scrolling their feed and make them think, \"I need to know what this is about.\"\n\n[TRANSCRIPT START]\n{{ $json.candidates[0].content.parts[0].text }}\n[TRANSCRIPT END]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -240
+      ],
+      "id": "da8cb472-9ba7-44a8-98be-cdfe7ab65655",
+      "name": "Generate an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ntzJjlEDwPiFjTvj",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "file",
+        "binaryPropertyName": "={{ $('Generate an image').item.binary.data }}",
+        "options": {
+          "channelId": "C0A318LEUKV"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1072,
+        -304
+      ],
+      "id": "5341892a-df02-4aee-9e39-fb90f4d3bced",
+      "name": "Upload a file",
+      "webhookId": "27181238-d0c9-4e2c-a373-c37db000629c",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "3ee5JdJo1eY8H5xM",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "communityManagement",
+        "postAs": "organization",
+        "text": "={{ $('Code in JavaScript3').item.json.text }}",
+        "shareMediaCategory": "IMAGE",
+        "binaryPropertyName": "={{ $('Generate an image').item.binary.data }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        224
+      ],
+      "id": "a849fe08-4e1f-41a7-b660-a641039f9622",
+      "name": "Create a post"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputObj = $('Split tweets').first().json;\nconst orderedTweets = [];\n\n// Loop through keys (tweet 1, tweet 2...) and push to array\nObject.keys(inputObj).sort().forEach(key => {\n  orderedTweets.push({\n    content: inputObj[key]\n  });\n});\n\nreturn orderedTweets;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        16
+      ],
+      "id": "0484cf10-0833-4b4a-9e06-5261b3f088a1",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        -16
+      ],
+      "id": "7ae76a9a-71af-4d97-8fd7-259e21ba5a49",
+      "name": "Create Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "Ml6Ex7eqhwr0Ny0t",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1H67pRPn7KUU8v0pxqSyoVS0prYT6JVydzVIWcoeSBuw/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2624,
+        -192
+      ],
+      "id": "6b4625ba-06d4-4b73-8ebf-bbade0b17e8d",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "3KUadF5Mwq0h6D6n",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $('Code in JavaScript').first().json.subject_line }}",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n<style>\n  /* Base Styles */\n  body { margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f4; color: #333333; }\n  .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }\n  .header { background-color: #ff6d5a; padding: 20px; text-align: center; color: white; font-weight: bold; font-size: 24px; }\n  .content { padding: 30px; }\n  .tldr-box { background-color: #f0f7ff; border-left: 4px solid #007bff; padding: 15px; margin-bottom: 25px; border-radius: 4px; }\n  .tldr-title { font-weight: bold; color: #007bff; margin-bottom: 10px; display: block; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }\n  .story-text { line-height: 1.6; font-size: 16px; color: #444; margin-bottom: 25px; }\n  .quote-box { font-style: italic; border-left: 2px solid #ccc; padding-left: 15px; margin: 20px 0; color: #666; }\n  .takeaways-box { background-color: #fff8e1; border: 1px solid #ffe0b2; padding: 20px; border-radius: 8px; margin-top: 30px; }\n  .footer { background-color: #eeeeee; padding: 15px; text-align: center; font-size: 12px; color: #888; }\n  .btn { display: inline-block; background-color: #333; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; margin-top: 10px; }\n</style>\n</head>\n<body>\n\n<div class=\"container\">\n  <div class=\"header\">\n    \n  </div>\n\n  <div class=\"content\">\n    \n    <p style=\"font-size: 18px; margin-top: 0;\">\n      Hi {{ $json.Name }}!\n    </p>\n\n    <div class=\"tldr-box\">\n      <span class=\"tldr-title\">⚡ Too Long; Didn't Read</span>\n      <ul style=\"margin: 0; padding-left: 20px;\">\n        {{ $('Code in JavaScript').first().json.tldr_bullets.map(b => `<li style=\"margin-bottom: 5px;\">${b}</li>`).join('') }}\n      </ul>\n    </div>\n\n    <div class=\"story-text\">\n      {{ $('Code in JavaScript').first().json.main_story_markdown }}\n    </div>\n\n    <div class=\"quote-box\">\n      \"{{ $('Code in JavaScript').first().json.quote_of_the_week }}\"\n    </div>\n\n    <div class=\"takeaways-box\">\n      <h3 style=\"margin-top: 0; color: #d84315;\">💡 Key Takeaways</h3>\n      <ul style=\"margin-bottom: 0;\">\n         {{ $('Code in JavaScript').first().json.key_takeaways.map(t => `<li style=\"margin-bottom: 8px;\">${t}</li>`).join('') }}\n      </ul>\n    </div>\n\n    <div style=\"text-align: center; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;\">\n      <p style=\"font-weight: bold; font-size: 16px;\">{{ $('Code in JavaScript').first().json.final_question }}</p>\n      <a href=\"#\" class=\"btn\">Reply & Let Us Know</a>\n    </div>\n\n  </div>\n\n  <div class=\"footer\">\n    <p>{{ $('Code in JavaScript').first().json.preview_text }}</p>\n    <p>Sent via Content Nuke Automation 🚀</p>\n  </div>\n</div>\n\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2912,
+        -256
+      ],
+      "id": "86cec6c1-5346-4e8d-8a93-22632876f731",
+      "name": "Send a message3",
+      "webhookId": "a9e63f5d-f206-445a-992e-f138055a6742",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yYQNrqba63KyoJA8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "file",
+        "binaryPropertyName": "={{ $('Code in JavaScript3').item.binary }}",
+        "options": {
+          "channelId": "C0A318LEUKV"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1936,
+        64
+      ],
+      "id": "b34cf461-9d67-4ff4-a70e-610dc2f2e43d",
+      "name": "experiment",
+      "webhookId": "2196d1fb-284d-4505-983e-c8dd0d245514",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "3ee5JdJo1eY8H5xM",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1312,
+        32
+      ],
+      "id": "e3200d5e-4333-499a-a017-a019fc15699c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get all the separate items from the input\nconst items = $input.all();\n\n// 2. Create a single empty object to hold everything\nconst mergedResult = {};\n\n// 3. Loop through each item and copy its data into the single object\nitems.forEach(item => {\n  Object.assign(mergedResult, item.json);\n});\n\n// 4. Return it as ONE single item\nreturn { json: mergedResult };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        64
+      ],
+      "id": "67ba16d4-b4d2-42b8-9e93-cdaaca9bc9c2",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Combine all your text fields into one big string\nconst json = $input.first().json;\nconst fullContent = `\n=========================\nLINKEDIN POST\n=========================\n${json.text}\n\n=========================\nTWITTER THREAD\n=========================\n1. ${json[\"tweet 1\"]}\n2. ${json[\"tweet 2\"]}\n3. ${json[\"tweet 3\"]}\n4. ${json[\"tweet 4\"]}\n5. ${json[\"tweet 5\"]}\n\n=========================\nNEWSLETTER\n=========================\nSubject: ${json.subject_line}\n\n${json.main_story_markdown}\n`;\n\n// 2. Convert string to a binary file object\n// We return the binary data so the next node can upload it\nreturn {\n  json: json, // Keep original JSON for later\n  binary: {\n    data: Buffer.from(fullContent).toString('base64'),\n    mimeType: 'text/markdown',\n    fileExtension: 'md',\n    fileName: 'draft_content.md'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        64
+      ],
+      "id": "6d5d1a24-e9f1-4111-a39f-30adceac39d4",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A318LEUKV",
+          "mode": "list",
+          "cachedResultName": "all-ai-workflow-automation-agency"
+        },
+        "message": "You can approve or reject the generated content.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2144,
+        64
+      ],
+      "id": "c24d980a-2545-4b0d-9678-10f064fbf8af",
+      "name": "Send a message4",
+      "webhookId": "57268fba-5e72-4d3f-a242-0d2bf3783c47",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "3ee5JdJo1eY8H5xM",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e8a7e875-547c-4f24-8e2e-130b78868f96",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2352,
+        64
+      ],
+      "id": "842a9936-6dda-42ad-9153-53c8a434589c",
+      "name": "If3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "RSS Feed Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Download Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Download Link": {
+      "main": [
+        [
+          {
+            "node": "Is Video long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twitter Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Newsletter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Video long": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LinkedIn Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Twitter Thread",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Thread": {
+      "main": [
+        [
+          {
+            "node": "Split tweets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split tweets": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Newsletter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Newsletter": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate an image": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "experiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "experiment": {
+      "main": [
+        [
+          {
+            "node": "Send a message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message4": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a49958c5-30af-435d-854f-21009842c7e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0c3ca7587fd9b3c6a0e579717b71fb73701e8ec9ea04060ff7b07bad8e51e5bf"
+  },
+  "id": "Kxu3ge2B1YXLtooa",
+  "tags": []
+}
