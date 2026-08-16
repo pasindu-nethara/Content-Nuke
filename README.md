@@ -25,3 +25,12 @@ An n8n workflow that turns one YouTube video into ready-to-post content. It watc
 | Email | Gmail |
 | Logging | Google Sheets |
 | YouTube audio | RapidAPI (youtube-mp36) |
+
+## Setup
+ 
+1. Import `Content_Nuke.json` into n8n.
+2. Add your own credentials for: Google Gemini, Slack, LinkedIn, X, Gmail, Google Sheets.
+3. Add your own RapidAPI key for the YouTube download step.
+4. Set the RSS feed URL to the YouTube channel you want to track.
+5. Update the Google Sheet ID and Slack channel ID to your own.
+6. Turn the workflow on.
